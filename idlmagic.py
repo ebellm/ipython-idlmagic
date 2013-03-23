@@ -1,34 +1,26 @@
 # -*- coding: utf-8 -*-
 """
 ===========
-octavemagic
+idlmagic
 ===========
 
-Magics for interacting with Octave via oct2py.
+Magics for interacting with IDL/GDL via pIDLy.
 
 .. note::
 
-  The ``oct2py`` module needs to be installed separately and
+  The ``pIDLy`` module needs to be installed separately and
   can be obtained using ``easy_install`` or ``pip``.
 
 Usage
 =====
 
-``%octave``
+``%idl``
 
-{OCTAVE_DOC}
-
-``%octave_push``
-
-{OCTAVE_PUSH_DOC}
-
-``%octave_pull``
-
-{OCTAVE_PULL_DOC}
-
+{IDL_DOC}
 """
 
 #-----------------------------------------------------------------------------
+#  Copyright (C) 2013 Eric Bellm
 #  Copyright (C) 2012 The IPython Development Team
 #
 #  Distributed under the terms of the BSD License.  The full license is in
@@ -40,7 +32,7 @@ from glob import glob
 from shutil import rmtree
 
 import numpy as np
-import oct2py
+import pidly
 from xml.dom import minidom
 
 from IPython.core.displaypub import publish_display_data
@@ -52,7 +44,7 @@ from IPython.core.magic_arguments import (
 )
 from IPython.utils.py3compat import unicode_to_str
 
-class OctaveMagicError(oct2py.Oct2PyError):
+class IDLMagicError(Exception):
     pass
 
 _mimetypes = {'png' : 'image/png',
@@ -61,8 +53,8 @@ _mimetypes = {'png' : 'image/png',
               'jpeg': 'image/jpeg'}
 
 @magics_class
-class OctaveMagics(Magics):
-    """A set of magics useful for interactive work with Octave via oct2py.
+class IDLMagics(Magics):
+    """A set of magics useful for interactive work with IDL via pIDLy.
     """
     def __init__(self, shell):
         """
@@ -71,45 +63,17 @@ class OctaveMagics(Magics):
         shell : IPython shell
 
         """
-        super(OctaveMagics, self).__init__(shell)
-        self._oct = oct2py.Oct2Py()
+        super(IDLMagics, self).__init__(shell)
+        self._idl = pidly.IDL()
         self._plot_format = 'png'
 
         # Allow publish_display_data to be overridden for
         # testing purposes.
         self._publish_display_data = publish_display_data
 
-
-    def _fix_gnuplot_svg_size(self, image, size=None):
-        """
-        GnuPlot SVGs do not have height/width attributes.  Set
-        these to be the same as the viewBox, so that the browser
-        scales the image correctly.
-
-        Parameters
-        ----------
-        image : str
-            SVG data.
-        size : tuple of int
-            Image width, height.
-
-        """
-        (svg,) = minidom.parseString(image).getElementsByTagName('svg')
-        viewbox = svg.getAttribute('viewBox').split(' ')
-
-        if size is not None:
-            width, height = size
-        else:
-            width, height = viewbox[2:]
-
-        svg.setAttribute('width', '%dpx' % width)
-        svg.setAttribute('height', '%dpx' % height)
-        return svg.toxml()
-
-
     @skip_doctest
     @line_magic
-    def octave_push(self, line):
+    def idl_push(self, line):
         '''
         Line-level magic that pushes a variable to Octave.
 
@@ -123,27 +87,27 @@ class OctaveMagics(Magics):
             In [9]: X.mean()
             Out[9]: 2.0
 
-            In [10]: %octave_push X
+            In [10]: %idl_push X
 
-            In [11]: %octave mean(X)
+            In [11]: %idl mean(X)
             Out[11]: 2.0
 
         '''
         inputs = line.split(' ')
         for input in inputs:
             input = unicode_to_str(input)
-            self._oct.put(input, self.shell.user_ns[input])
+            self._idl.ex(input,assignment_value=self.shell.user_ns[input])
 
 
     @skip_doctest
     @line_magic
-    def octave_pull(self, line):
+    def idl_pull(self, line):
         '''
         Line-level magic that pulls a variable from Octave.
 
-            In [18]: _ = %octave x = [1 2; 3 4]; y = 'hello'
+            In [18]: _ = %idl x = [1, 2, 3, 4]; y = 'hello'
 
-            In [19]: %octave_pull x y
+            In [19]: %idl_pull x y
 
             In [20]: x
             Out[20]:
@@ -157,7 +121,7 @@ class OctaveMagics(Magics):
         outputs = line.split(' ')
         for output in outputs:
             output = unicode_to_str(output)
-            self.shell.push({output: self._oct.get(output)})
+            self.shell.push({output: self._idl.ev(output)})
 
 
     @skip_doctest
@@ -188,7 +152,7 @@ class OctaveMagics(Magics):
         nargs='*',
         )
     @line_cell_magic
-    def octave(self, line, cell=None, local_ns=None):
+    def idl(self, line, cell=None, local_ns=None):
         '''
         Execute code in Octave, and pull some of the results back into the
         Python namespace.
@@ -232,7 +196,7 @@ class OctaveMagics(Magics):
                 ...: plot([1, 2, 3]);
 
         '''
-        args = parse_argstring(self.octave, line)
+        args = parse_argstring(self.idl, line)
 
         # arguments 'code' in line are prepended to the cell lines
         if cell is None:
@@ -255,7 +219,7 @@ class OctaveMagics(Magics):
                     val = local_ns[input]
                 except KeyError:
                     val = self.shell.user_ns[input]
-                self._oct.put(input, val)
+                self._idl.put(input, val)
 
         # generate plots in a temporary directory
         plot_dir = tempfile.mkdtemp().replace('\\', '/')
@@ -306,18 +270,13 @@ class OctaveMagics(Magics):
 
         ''' % locals()
 
-        code = ' '.join((pre_call, code, post_call))
+        #code = ' '.join((pre_call, code, post_call))
         try:
-            text_output = self._oct.run(code, verbose=False)
-        except (oct2py.Oct2PyError) as exception:
-            msg = exception.message
-            msg = msg.split('# ___<end_pre_call>___ #')[1]
-            msg = msg.split('# ___<start_post_call>___ #')[0]
-            raise OctaveMagicError('Octave could not complete execution.  '
-                                   'Traceback (currently broken in oct2py): %s'
-                                   % msg)
+            text_output = self._idl.run(code, verbose=False)
+        except:
+            raise IDLMagicError('IDL could not complete execution.')
 
-        key = 'OctaveMagic.Octave'
+        key = 'IDLMagic.IDL'
         display_data = []
 
         # Publish text output
@@ -332,8 +291,6 @@ class OctaveMagics(Magics):
         plot_mime_type = _mimetypes.get(plot_format, 'image/png')
         width, height = [int(s) for s in size.split(',')]
         for image in images:
-            if plot_format == 'svg':
-                image = self._fix_gnuplot_svg_size(image, size=(width, height))
             display_data.append((key, {plot_mime_type: image}))
 
         if args.output:
@@ -345,7 +302,7 @@ class OctaveMagics(Magics):
             self._publish_display_data(source, data)
 
         if return_output:
-            ans = self._oct.get('_')
+            ans = self._idl.get('_')
 
             # Unfortunately, Octave doesn't have a "None" object,
             # so we can't return any NaN outputs
@@ -356,12 +313,10 @@ class OctaveMagics(Magics):
 
 
 __doc__ = __doc__.format(
-    OCTAVE_DOC = ' '*8 + OctaveMagics.octave.__doc__,
-    OCTAVE_PUSH_DOC = ' '*8 + OctaveMagics.octave_push.__doc__,
-    OCTAVE_PULL_DOC = ' '*8 + OctaveMagics.octave_pull.__doc__
+    IDL_DOC = ' '*8 + IDLMagics.idl.__doc__,
     )
 
 
 def load_ipython_extension(ip):
     """Load the extension in IPython."""
-    ip.register_magics(OctaveMagics)
+    ip.register_magics(IDLMagics)
