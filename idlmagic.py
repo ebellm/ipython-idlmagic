@@ -17,6 +17,15 @@ Usage
 ``%idl``
 
 {IDL_DOC}
+
+``%idl_push``
+
+{IDL_PUSH_DOC}
+
+``%idl_pull``
+
+{IDL_PULL_DOC}
+
 """
 
 #-----------------------------------------------------------------------------
@@ -128,12 +137,12 @@ class IDLMagics(Magics):
     @magic_arguments()
     @argument(
         '-i', '--input', action='append',
-        help='Names of input variables to be pushed to Octave. Multiple names '
+        help='Names of input variables to be pushed to IDL. Multiple names '
              'can be passed, separated by commas with no whitespace.'
         )
     @argument(
         '-o', '--output', action='append',
-        help='Names of variables to be pulled from Octave after executing cell '
+        help='Names of variables to be pulled from IDL after executing cell '
              'body. Multiple names can be passed, separated by commas with no '
              'whitespace.'
         )
@@ -154,7 +163,7 @@ class IDLMagics(Magics):
     @line_cell_magic
     def idl(self, line, cell=None, local_ns=None):
         '''
-        Execute code in Octave, and pull some of the results back into the
+        Execute in Octave, and pull some of the results back into the
         Python namespace.
 
             In [9]: %octave X = [1 2; 3 4]; mean(X)
@@ -200,11 +209,11 @@ class IDLMagics(Magics):
 
         # arguments 'code' in line are prepended to the cell lines
         if cell is None:
+            # called as line magic
             code = ''
-            return_output = True
         else:
+            # called as cell magic
             code = cell
-            return_output = False
 
         code = ' '.join(args.code) + code
 
@@ -219,7 +228,7 @@ class IDLMagics(Magics):
                     val = local_ns[input]
                 except KeyError:
                     val = self.shell.user_ns[input]
-                self._idl.put(input, val)
+                self._idl.ex(input,assignment_value=self.shell.user_ns[input])
 
         # generate plots in a temporary directory
         plot_dir = tempfile.mkdtemp().replace('\\', '/')
@@ -272,7 +281,7 @@ class IDLMagics(Magics):
 
         #code = ' '.join((pre_call, code, post_call))
         try:
-            text_output = self._idl.run(code, verbose=False)
+            text_output = self._idl.ex(code)
         except:
             raise IDLMagicError('IDL could not complete execution.')
 
@@ -296,24 +305,16 @@ class IDLMagics(Magics):
         if args.output:
             for output in ','.join(args.output).split(','):
                 output = unicode_to_str(output)
-                self.shell.push({output: self._oct.get(output)})
+                self.shell.push({output: self._idl.ev(output)})
 
         for source, data in display_data:
             self._publish_display_data(source, data)
 
-        if return_output:
-            ans = self._idl.get('_')
-
-            # Unfortunately, Octave doesn't have a "None" object,
-            # so we can't return any NaN outputs
-            if np.isscalar(ans) and np.isnan(ans):
-                ans = None
-
-            return ans
-
 
 __doc__ = __doc__.format(
     IDL_DOC = ' '*8 + IDLMagics.idl.__doc__,
+    IDL_PUSH_DOC = ' '*8 + IDLMagics.idl_push.__doc__,
+    IDL_PULL_DOC = ' '*8 + IDLMagics.idl_pull.__doc__,
     )
 
 
