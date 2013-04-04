@@ -235,51 +235,52 @@ class IDLMagics(Magics):
         if args.size is not None:
             size = args.size
         else:
-            size = '400,240'
+            size = '400,250'
 
         if args.format is not None:
             plot_format = args.format
         else:
             plot_format = 'png'
 
+        # adapted from http://moonlets.org/Code/plot2png.pro
         pre_call = '''
-        global __ipy_figures = [];
-        page_screen_output(0);
+        set_plot,'Z'
+        device, z_buffering=1, set_resolution = [%(size)s], decomposed=1
+        !p.font = -1
+        !p.charsize=1.2
+        !p.charthick=1.2
+        !p.thick=1.5
+        !p.color = '000000'xL
+        !p.background = 'FFFFFF'xL
 
-        function fig_create(src, event)
-          global __ipy_figures;
-          __ipy_figures(size(__ipy_figures) + 1) = src;
-          set(src, "visible", "off");
-        end
-
-        set(0, 'DefaultFigureCreateFcn', @fig_create);
-
-        close all;
-        clear ans;
-
-        # ___<end_pre_call>___ #
-        '''
-
-        post_call = '''
-        # ___<start_post_call>___ #
-
-        # Save output of the last execution
-        if exist("ans") == 1
-          _ = ans;
-        else
-          _ = nan;
-        end
-
-        for f = __ipy_figures
-          outfile = sprintf('%(plot_dir)s/__ipy_oct_fig_%%03d.png', f);
-          try
-            print(f, outfile, '-d%(plot_format)s', '-tight', '-S%(size)s');
-          end
-        end
-
+        ; ___<end_pre_call>___ 
         ''' % locals()
 
-        #code = ' '.join((pre_call, code, post_call))
+        post_call = '''
+        ; ___<start_post_call>___ 
+
+        ; load color table info
+        tvlct, r,g,b, /get
+        
+        img = tvrd()
+        device,/close
+
+        ;outfile = '%(plot_dir)s/__ipy_idl_fig_%%03d.png', f);
+        outfile = '%(plot_dir)s/__ipy_idl_fig.png'
+        ; Set the colors for each channel
+        s = size(img)
+        ii=bytarr(3,s[1],s[2])
+        ii[0,*,*]=r[img]
+        ii[1,*,*]=g[img]
+        ii[2,*,*]=b[img]
+
+        ; Write the PNG
+        ; don't write if the image is blank
+        if total(img) ne 0 then write_png, outfile, ii, r, g, b
+        ''' % locals()
+
+        code = ''.join((pre_call, code, post_call))
+        print code
         try:
             text_output = self._idl.ex(code)
         except:
@@ -293,9 +294,12 @@ class IDLMagics(Magics):
             display_data.append((key, {'text/plain': text_output}))
 
         # Publish images
-        images = [open(imgfile, 'rb').read() for imgfile in \
-                  glob("%s/*" % plot_dir)]
-        rmtree(plot_dir)
+        #images = [open(imgfile, 'rb').read() for imgfile in \
+        #          glob("%s/*.png" % plot_dir)]
+        #images = [open(imgfile, 'rb').read() for imgfile in \
+        #          ["%s/__ipy_idl_fig.png" % plot_dir]]
+        images = []
+        #rmtree(plot_dir)
 
         plot_mime_type = _mimetypes.get(plot_format, 'image/png')
         width, height = [int(s) for s in size.split(',')]
