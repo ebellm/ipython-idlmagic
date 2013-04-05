@@ -73,7 +73,11 @@ class IDLMagics(Magics):
 
         """
         super(IDLMagics, self).__init__(shell)
-        self._idl = pidly.IDL()
+        #TODO: allow specifying path on %load_ext
+        #self._idl = pidly.IDL()
+        # NB that pidly returns when it reads the text prompt--needs to 
+        # match that of the interpreter!
+        self._idl = pidly.IDL('gdl',idl_prompt='GDL>')
         self._plot_format = 'png'
 
         # Allow publish_display_data to be overridden for
@@ -245,13 +249,14 @@ class IDLMagics(Magics):
         # adapted from http://moonlets.org/Code/plot2png.pro
         pre_call = '''
         set_plot,'Z'
-        device, z_buffering=1, set_resolution = [%(size)s], decomposed=1
+        ;device, z_buffering=1, set_resolution = [%(size)s], decomposed=1
+        device, z_buffering=1, set_resolution = [%(size)s]
         !p.font = -1
         !p.charsize=1.2
         !p.charthick=1.2
         !p.thick=1.5
-        !p.color = '000000'xL
-        !p.background = 'FFFFFF'xL
+        !p.color = 0
+        !p.background = 256
 
         ; ___<end_pre_call>___ 
         ''' % locals()
@@ -279,12 +284,20 @@ class IDLMagics(Magics):
         if total(img) ne 0 then write_png, outfile, ii, r, g, b
         ''' % locals()
 
-        code = ''.join((pre_call, code, post_call))
-        print code
-        try:
-            text_output = self._idl.ex(code)
-        except:
-            raise IDLMagicError('IDL could not complete execution.')
+        #code = ''.join((pre_call, code, post_call))
+        #print code
+        #codes = [pre_call, code, post_call]
+        codes = [code]
+        text_output = ""
+        # next step is to split user code into lines to get all text?
+        for code_i in codes:
+            #print code_i
+            #try:
+            text_output_i = self._idl.ex(code_i,print_output=False,ret=True)
+            if text_output_i is not None:
+                text_output += text_output_i
+            #except:
+            #    raise IDLMagicError('IDL could not complete execution.')
 
         key = 'IDLMagic.IDL'
         display_data = []
