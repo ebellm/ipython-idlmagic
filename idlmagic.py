@@ -287,17 +287,20 @@ class IDLMagics(Magics):
         #code = ''.join((pre_call, code, post_call))
         #print code
         #codes = [pre_call, code, post_call]
-        codes = [code]
-        text_output = ""
+        codes = code.split('\n')
+
+        text_outputs = [] 
         # next step is to split user code into lines to get all text?
         for code_i in codes:
             #print code_i
             #try:
             text_output_i = self._idl.ex(code_i,print_output=False,ret=True)
             if text_output_i is not None:
-                text_output += text_output_i
+                text_outputs.append(text_output_i)
             #except:
             #    raise IDLMagicError('IDL could not complete execution.')
+
+        text_output = "\n".join(text_outputs)
 
         key = 'IDLMagic.IDL'
         display_data = []
