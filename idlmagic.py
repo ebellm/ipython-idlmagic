@@ -287,14 +287,17 @@ class IDLMagics(Magics):
         #code = ''.join((pre_call, code, post_call))
         #print code
         #codes = [pre_call, code, post_call]
-        codes = code.split('\n')
+		# TODO: need to cut out comments, join continued lines
+		# TODO: for speed reasons, consider requiring a plot argument?
+        codes = pre_call.split('\n') + code.split('\n') + post_call.split('\n')
 
         text_outputs = [] 
         # next step is to split user code into lines to get all text?
         for code_i in codes:
-            #print code_i
+            #print '> ', code_i
             #try:
             text_output_i = self._idl.ex(code_i,print_output=False,ret=True)
+            #print '    ',text_output_i
             if text_output_i is not None:
                 text_outputs.append(text_output_i)
             #except:
