@@ -271,34 +271,28 @@ class IDLMagics(Magics):
         if total(img) ne 0 then write_png, outfile, ii, r, g, b
         ''' % locals()
 
-        #code = ''.join((pre_call, code, post_call))
-        #print code
-        #codes = [pre_call, code, post_call]
-        # TODO: need to cut out comments, join continued lines
         # TODO: for speed reasons, consider requiring a plot argument?
 
         # allow for line continuations ('$') and comments (';')
         # drop everything after comments in a line
         uncommented_lines = [lin.split(';')[0].strip() for lin 
             in code.split('\n')]
-        joined_lines = '\n'.join(uncommented_lines)
+        joined_lines = '\n'.join([lin for lin in uncommented_lines if 
+            len(lin) > 0])
+		# join line continuations
         final_code = joined_lines.replace('$\n',' ')
-        
 
         codes = pre_call.split('\n') + final_code.split('\n') + \
             post_call.split('\n')
 
         text_outputs = [] 
-        # next step is to split user code into lines to get all text?
         for code_i in codes:
-            #print '> ', code_i
-            #try:
-            text_output_i = self._idl.ex(code_i,print_output=False,ret=True)
-            #print '    ',text_output_i
-            if text_output_i is not None:
-                text_outputs.append(text_output_i)
-            #except:
-            #    raise IDLMagicError('IDL could not complete execution.')
+            try:
+                text_output_i = self._idl.ex(code_i,print_output=False,ret=True)
+                if text_output_i is not None:
+                    text_outputs.append(text_output_i)
+            except:
+                raise IDLMagicError('IDL could not complete execution.')
 
         text_output = "\n".join(text_outputs)
 
