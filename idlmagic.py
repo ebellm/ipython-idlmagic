@@ -255,8 +255,8 @@ class IDLMagics(Magics):
         !p.charsize=1.2
         !p.charthick=1.2
         !p.thick=1.5
-        !p.color = 0
-        !p.background = 256
+        ;!p.color = 1
+        ;!p.background = 255
 
         ; ___<end_pre_call>___ 
         ''' % locals()
@@ -287,8 +287,8 @@ class IDLMagics(Magics):
         #code = ''.join((pre_call, code, post_call))
         #print code
         #codes = [pre_call, code, post_call]
-		# TODO: need to cut out comments, join continued lines
-		# TODO: for speed reasons, consider requiring a plot argument?
+        # TODO: need to cut out comments, join continued lines
+        # TODO: for speed reasons, consider requiring a plot argument?
         codes = pre_call.split('\n') + code.split('\n') + post_call.split('\n')
 
         text_outputs = [] 
@@ -315,10 +315,9 @@ class IDLMagics(Magics):
         # Publish images
         #images = [open(imgfile, 'rb').read() for imgfile in \
         #          glob("%s/*.png" % plot_dir)]
-        #images = [open(imgfile, 'rb').read() for imgfile in \
-        #          ["%s/__ipy_idl_fig.png" % plot_dir]]
-        images = []
-        #rmtree(plot_dir)
+        images = [open(imgfile, 'rb').read() for imgfile in \
+                  ["%s/__ipy_idl_fig.png" % plot_dir]]
+        rmtree(plot_dir)
 
         plot_mime_type = _mimetypes.get(plot_format, 'image/png')
         width, height = [int(s) for s in size.split(',')]
