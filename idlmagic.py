@@ -88,22 +88,22 @@ class IDLMagics(Magics):
     @line_magic
     def idl_push(self, line):
         '''
-        Line-level magic that pushes a variable to Octave.
+        Line-level magic that pushes a variable to IDL.
 
         `line` should be made up of whitespace separated variable names in the
         IPython namespace::
 
             In [7]: import numpy as np
 
-            In [8]: X = np.arange(5)
+           In [8]: X = np.arange(5)
 
             In [9]: X.mean()
             Out[9]: 2.0
 
             In [10]: %idl_push X
 
-            In [11]: %idl mean(X)
-            Out[11]: 2.0
+            In [11]: %idl print,mean(X)
+            Out[11]: 2.00000
 
         '''
         inputs = line.split(' ')
@@ -116,19 +116,18 @@ class IDLMagics(Magics):
     @line_magic
     def idl_pull(self, line):
         '''
-        Line-level magic that pulls a variable from Octave.
+        Line-level magic that pulls a variable from IDL.
 
-            In [18]: _ = %idl x = [1, 2, 3, 4]; y = 'hello'
+            In [18]: %idl x = [1, 2, 3, 4] & y = 'hello'
 
             In [19]: %idl_pull x y
 
             In [20]: x
             Out[20]:
-            array([[ 1.,  2.],
-                   [ 3.,  4.]])
+            array([ 1,  2,  3,  4], dtype=int16)
 
             In [21]: y
-            Out[21]: 'hello'
+            Out[21]: array('hello', dtype='|S5')
 
         '''
         outputs = line.split(' ')
@@ -152,11 +151,7 @@ class IDLMagics(Magics):
         )
     @argument(
         '-s', '--size', action='store',
-        help='Pixel size of plots, "width,height". Default is "-s 400,250".'
-        )
-    @argument(
-        '-f', '--format', action='store',
-        help='Plot format (png, svg or jpg).'
+        help='Pixel size of plots, "width,height". Default is "-s 600,375".'
         )
 
     @needs_local_scope
@@ -167,46 +162,46 @@ class IDLMagics(Magics):
     @line_cell_magic
     def idl(self, line, cell=None, local_ns=None):
         '''
-        Execute in Octave, and pull some of the results back into the
+        Execute in IDL, and pull some of the results back into the
         Python namespace.
 
-            In [9]: %octave X = [1 2; 3 4]; mean(X)
-            Out[9]: array([[ 2., 3.]])
+            In [9]: %idl X = [[1, 2], [3, 4]] & print, mean(X)
+            Out[9]: 2.50000
 
-        As a cell, this will run a block of Octave code, without returning any
+        As a cell, this will run a block of IDL code, without returning any
         value::
 
-            In [10]: %%octave
+            In [10]: %%idl
                ....: p = [-2, -1, 0, 1, 2]
-               ....: polyout(p, 'x')
+               ....: print, poly(1,p)
 
-            -2*x^4 - 1*x^3 + 0*x^2 + 1*x^1 + 2
+            4.000000
 
         In the notebook, plots are published as the output of the cell, e.g.
 
-        %octave plot([1 2 3], [4 5 6])
+        %idl plot, findgen(10)
 
         will create a line plot.
 
-        Objects can be passed back and forth between Octave and IPython via the
+        Objects can be passed back and forth between IDL and IPython via the
         -i and -o flags in line::
 
             In [14]: Z = np.array([1, 4, 5, 10])
 
-            In [15]: %octave -i Z mean(Z)
-            Out[15]: array([ 5.])
+            In [15]: %idl -i Z print, mean(Z)
+            Out[15]: 5.00000
 
 
-            In [16]: %octave -o W W = Z * mean(Z)
-            Out[16]: array([  5.,  20.,  25.,  50.])
+            In [16]: %idl -o W W = Z * mean(Z)
+            Out[16]: array([  5.,  20.,  25.,  50.], dtype=float32)
 
             In [17]: W
-            Out[17]: array([  5.,  20.,  25.,  50.])
+            Out[17]: array([  5.,  20.,  25.,  50.], dtype=float32)
 
-        The size and format of output plots can be specified::
+        The size of output plots can be specified::
 
-            In [18]: %%octave -s 600,800 -f svg
-                ...: plot([1, 2, 3]);
+            In [18]: %%idl -s 600,800 
+                ...: plot, findgen(10)
 
         '''
         args = parse_argstring(self.idl, line)
@@ -239,24 +234,18 @@ class IDLMagics(Magics):
         if args.size is not None:
             size = args.size
         else:
-            size = '400,250'
+            size = '600,375'
 
-        if args.format is not None:
-            plot_format = args.format
-        else:
-            plot_format = 'png'
+        plot_format = 'png'
 
         # adapted from http://moonlets.org/Code/plot2png.pro
         pre_call = '''
         set_plot,'Z'
-        ;device, z_buffering=1, set_resolution = [%(size)s], decomposed=1
         device, z_buffering=1, set_resolution = [%(size)s]
         !p.font = -1
         !p.charsize=1.2
         !p.charthick=1.2
         !p.thick=1.5
-        ;!p.color = 1
-        ;!p.background = 255
 
         ; ___<end_pre_call>___ 
         ''' % locals()
@@ -270,7 +259,6 @@ class IDLMagics(Magics):
         img = tvrd()
         device,/close
 
-        ;outfile = '%(plot_dir)s/__ipy_idl_fig_%%03d.png', f);
         outfile = '%(plot_dir)s/__ipy_idl_fig.png'
         ; Set the colors for each channel
         s = size(img)
@@ -279,8 +267,7 @@ class IDLMagics(Magics):
         ii[1,*,*]=g[img]
         ii[2,*,*]=b[img]
 
-        ; Write the PNG
-        ; don't write if the image is blank
+        ; Write the PNG if the image is not blank
         if total(img) ne 0 then write_png, outfile, ii, r, g, b
         ''' % locals()
 
@@ -289,7 +276,17 @@ class IDLMagics(Magics):
         #codes = [pre_call, code, post_call]
         # TODO: need to cut out comments, join continued lines
         # TODO: for speed reasons, consider requiring a plot argument?
-        codes = pre_call.split('\n') + code.split('\n') + post_call.split('\n')
+
+        # allow for line continuations ('$') and comments (';')
+        # drop everything after comments in a line
+        uncommented_lines = [lin.split(';')[0].strip() for lin 
+            in code.split('\n')]
+        joined_lines = '\n'.join(uncommented_lines)
+        final_code = joined_lines.replace('$\n',' ')
+        
+
+        codes = pre_call.split('\n') + final_code.split('\n') + \
+            post_call.split('\n')
 
         text_outputs = [] 
         # next step is to split user code into lines to get all text?
@@ -312,11 +309,9 @@ class IDLMagics(Magics):
         if text_output:
             display_data.append((key, {'text/plain': text_output}))
 
-        # Publish images
-        #images = [open(imgfile, 'rb').read() for imgfile in \
-        #          glob("%s/*.png" % plot_dir)]
+        # Publish images (only one for now)
         images = [open(imgfile, 'rb').read() for imgfile in \
-                  ["%s/__ipy_idl_fig.png" % plot_dir]]
+                  glob("%s/__ipy_idl_fig.png" % plot_dir)]
         rmtree(plot_dir)
 
         plot_mime_type = _mimetypes.get(plot_format, 'image/png')
