@@ -52,6 +52,7 @@ from IPython.core.magic_arguments import (
     argument, magic_arguments, parse_argstring
 )
 from IPython.utils.py3compat import unicode_to_str
+from pexpect import ExceptionPexpect
 
 class IDLMagicError(Exception):
     pass
@@ -64,8 +65,11 @@ _mimetypes = {'png' : 'image/png',
 @magics_class
 class IDLMagics(Magics):
     """A set of magics useful for interactive work with IDL via pIDLy.
+
+    Uses IDL by default if installed; if IDL is not found, attempts to 
+    fall back to GDL.
     """
-    def __init__(self, shell):
+    def __init__(self, shell, gdl=False):
         """
         Parameters
         ----------
@@ -73,11 +77,17 @@ class IDLMagics(Magics):
 
         """
         super(IDLMagics, self).__init__(shell)
-        #TODO: allow specifying path on %load_ext
-        #self._idl = pidly.IDL()
-        # NB that pidly returns when it reads the text prompt--needs to 
-        # match that of the interpreter!
-        self._idl = pidly.IDL('gdl',idl_prompt='GDL>')
+        #TODO: allow specifying path, executible on %load_ext
+        try:
+            self._idl = pidly.IDL()
+        except ExceptionPexpect:
+            try:
+                # NB that pidly returns when it reads the text prompt--needs to 
+                # match that of the interpreter!
+                self._idl = pidly.IDL('gdl',idl_prompt='GDL>')
+                print 'IDL not found, using GDL'
+            except ExceptionPexpect:
+                raise IDLMagicError('Neither IDL or GDL interpreters found')
         self._plot_format = 'png'
 
         # Allow publish_display_data to be overridden for
@@ -279,7 +289,7 @@ class IDLMagics(Magics):
             in code.split('\n')]
         joined_lines = '\n'.join([lin for lin in uncommented_lines if 
             len(lin) > 0])
-		# join line continuations
+        # join line continuations
         final_code = joined_lines.replace('$\n',' ')
 
         codes = pre_call.split('\n') + final_code.split('\n') + \
