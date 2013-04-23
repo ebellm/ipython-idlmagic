@@ -32,8 +32,9 @@ Usage
 #  Copyright (C) 2013 Eric Bellm
 #  Copyright (C) 2012 The IPython Development Team
 #
-#  Distributed under the terms of the BSD License.  The full license is in
-#  the file COPYING, distributed as part of this software.
+#  Distributed under the terms of the BSD License.  This software was derived 
+#  from components of IPython; the full license is in
+#  the file COPYING, distributed as part of that software.
 #-----------------------------------------------------------------------------
 
 import tempfile
