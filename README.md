@@ -97,7 +97,7 @@ Out[15]: array([ 1.        ,  2.        ,  2.23606801,  3.1622777 ], dtype=float
 Inline plots are displayed automatically by the IPython notebook.  IDL Direct graphics are used.  The optional `-s width,height` argument (or `--size`; default: `600,375`) specifies the size of the resulting png image.
 
 ```
-%%idl -s 400,400
+In [16]: %%idl -s 400,400
 plot, findgen(10), xtitle='X', ytitle='Y'
 ```
 
