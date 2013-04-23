@@ -59,7 +59,6 @@ In [6]: import numpy as np
 
 In [7]: arr = np.arange(5)
 
-
 In [8]: %idl_push msg arr
 
 In [9]: %%idl
@@ -99,7 +98,7 @@ Inline plots are displayed automatically by the IPython notebook.  IDL Direct gr
 
 ```
 %%idl -s 400,400
-plot,findgen(10),xtitle='X',ytitle='Y'
+plot, findgen(10), xtitle='X', ytitle='Y'
 ```
 
 
