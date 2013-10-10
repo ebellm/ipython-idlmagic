@@ -104,7 +104,7 @@ plot, findgen(10), xtitle='X', ytitle='Y'
 
 ## Known issues and limitations
 
-* The `%idl` line magic fails with `TypeError: coercing to Unicode: need string or buffer, dict found` in current release versions of IPython (0.13.2 and below) due to a [known bug](http://stackoverflow.com/questions/14574434/unicode-error-with-ipython-rmagic-r-seems-to-work-but-not-r-fully); the github development version of IPython works as expected.
 * Only one plot can be rendered per cell
 * Processing for possibly unused plot output slows execution
 * Scalar variables from IDL may be returned as single-element Numpy arrays
+* The `%idl` line magic fails with `TypeError: coercing to Unicode: need string or buffer, dict found` in IPython 0.13.2 and below due to a [known bug](http://stackoverflow.com/questions/14574434/unicode-error-with-ipython-rmagic-r-seems-to-work-but-not-r-fully); IPython 1.0 and later should work as expected.
